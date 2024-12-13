@@ -189,10 +189,8 @@ public class SimplexMethod {
     }
 
     private boolean isPhaseOneOver() {
-        for (int i = 0; i < numberOfConstraints; i++) {
-            for (int j = numberOfOriginalVariables + (numberOfConstraints - numberOfArtificialVariables()); j < totalVariables; j++) {
-                if (Math.abs(table[i][j]) > 1e-6) return false;
-            }
+        for (int j = numberOfOriginalVariables + (numberOfConstraints - numberOfArtificialVariables()); j < totalVariables; j++) {
+            if (table[numberOfConstraints][j] > 1e-6) return false; // Check if all artificial variables in the objective function are zero
         }
         return true;
     }
@@ -227,22 +225,29 @@ public class SimplexMethod {
 
     public double[] getSolution() {
         double[] solution = new double[numberOfOriginalVariables];
-        for (int i = 0; i < numberOfOriginalVariables; i++) {
-            solution[i] = 0.0;
-        }
+        Arrays.fill(solution, 0.0);
 
         for (int i = 0; i < numberOfConstraints; i++) {
             boolean isBasic = true;
+            int basicVarIndex = -1;
+
+            // Identificar a variável básica para cada linha
             for (int j = 0; j < numberOfOriginalVariables; j++) {
                 if (Math.abs(table[i][j]) > 1e-6) {
-                    isBasic = false;
-                    break;
+                    if (basicVarIndex != -1) {
+                        isBasic = false;  // Se houver mais de um valor não zero, não é uma variável básica
+                        break;
+                    }
+                    basicVarIndex = j;
                 }
             }
-            if (isBasic) {
-                solution[i] = table[i][totalVariables];
+
+            // Se for uma variável básica, atribua o valor correspondente
+            if (isBasic && basicVarIndex != -1) {
+                solution[basicVarIndex] = table[i][totalVariables];
             }
         }
+
         return solution;
     }
 
