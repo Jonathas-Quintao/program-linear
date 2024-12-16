@@ -1,147 +1,166 @@
+import java.util.*;
+import java.io.*;
+
 public class SimplexBigM {
+    static boolean tipoProblema; // true = maximização, false = minimização
+    static List<Float> C = new ArrayList<>();
+    static List<Float> diferenca = new ArrayList<>();
+    static List<String> B = new ArrayList<>();
+    static List<Float> C_B = new ArrayList<>();
+    static List<Float> X_B = new ArrayList<>();
+    static List<List<Float>> A = new ArrayList<>();
+    static List<String> variaveis_artificiais = new ArrayList<>();
 
-    // Método que implementa o algoritmo Simplex com o método Big M
-    public static void simplexBigM(double[][] A, double[] b, double[] c) {
-        int numVariables = c.length;
-        int numConstraints = A.length;
+    public static void inicializar() {
 
-        // Inicializando a matriz aumentada
-        double[][] tableau = new double[numConstraints + 1][numVariables + numConstraints + 1];
+        // Configurar os dados fixos
 
-        // Adicionando variáveis de folga e artificiais
-        for (int i = 0; i < numConstraints; i++) {
-            for (int j = 0; j < numVariables; j++) {
-                tableau[i][j] = A[i][j];
-            }
-            tableau[i][numVariables + i] = 1; // Variáveis de folga
-            tableau[i][tableau[0].length - 1] = b[i];
-        }
+        tipoProblema = true; // true para maximização, false para minimização
 
-        // Adicionando a função objetivo com as variáveis artificiais
-        for (int i = 0; i < numVariables; i++) {
-            tableau[numConstraints][i] = c[i];
-        }
+        // Coeficientes da função objetivo
+        C = Arrays.asList(3f, 2f, 0f, 0f, 0f); // Exemplo: maximizar 3x1 + 2x2
 
-        // Usando um grande M para penalizar variáveis artificiais
-        double M = 10000;
-        for (int i = 0; i < numConstraints; i++) {
-            tableau[numConstraints][numVariables + i] = -M; // Coeficientes para variáveis artificiais
-        }
+        // Variáveis básicas iniciais
+        B = Arrays.asList("x3", "x4", "x5"); // Variáveis de folga ou artificiais
 
-        // Exibe a tabela inicial
-        System.out.println("Tabela inicial:");
-        printTableau(tableau);
+        // Coeficientes de C_B (valores iniciais das variáveis básicas na função objetivo)
+        C_B = Arrays.asList(0f, 0f, 0f);
 
-        // Loop do Simplex
-        while (true) {
-            // Verifica se há coeficientes negativos na linha da função objetivo
-            int pivotCol = findPivotColumn(tableau);
-            if (pivotCol == -1) break; // Solução ótima encontrada
+        // Soluções básicas iniciais (lado direito das restrições)
+        X_B = Arrays.asList(4f, 6f, 5f); // Valores correspondentes ao lado direito das restrições
 
-            // Verifica se existe uma solução viável
-            int pivotRow = findPivotRow(tableau, pivotCol);
-            if (pivotRow == -1) {
-                System.out.println("O problema não tem solução viável.");
+        // Matriz de restrições
+        A = Arrays.asList(
+                Arrays.asList(2f, 1f, 1f, 0f, 0f),
+                Arrays.asList(1f, 2f, 0f, 1f, 0f),
+                Arrays.asList(1f, 1f, 0f, 0f, 1f)
+        );
+
+        // Variáveis artificiais (se existirem)
+        variaveis_artificiais = new ArrayList<>();
+
+        System.out.println("Dados inicializados com valores fixos.");
+        System.out.println("Executando o método simplex...");
+
+        simplex();
+    }
+
+    public static void simplex() {
+        // Cálculo inicial de Zj - Cj
+        calcularDiferenca();
+
+        while (existeMin()) {
+            int indiceEntrada = indiceMin();
+            int indiceSaida = indiceSaida(indiceEntrada);
+
+            if (indiceSaida == -1) {
+                System.out.println("*********** Problema sem solução viável ***********");
                 return;
             }
 
-            // Faz o pivô
-            pivot(tableau, pivotRow, pivotCol);
-
-            // Exibe a tabela após a iteração
-            System.out.println("Tabela após iteração:");
-            printTableau(tableau);
+            atualizarBase(indiceEntrada, indiceSaida);
+            calcularDiferenca();
         }
 
-        // Exibindo a solução final
-        printSolution(tableau);
+        calcularResultado();
     }
 
-    // Encontrar a coluna pivô (com o coeficiente mais negativo na função objetivo)
-    public static int findPivotColumn(double[][] tableau) {
-        int pivotCol = -1;
-        double minVal = 0;
-        for (int i = 0; i < tableau[0].length - 1; i++) {
-            if (tableau[tableau.length - 1][i] < minVal) {
-                minVal = tableau[tableau.length - 1][i];
-                pivotCol = i;
+    public static void calcularDiferenca() {
+        diferenca.clear();
+        for (int i = 0; i < C.size(); i++) {
+            float soma = 0;
+            for (int j = 0; j < B.size(); j++) {
+                soma += C_B.get(j) * A.get(j).get(i);
             }
+            diferenca.add(soma - C.get(i));
         }
-        return pivotCol;
     }
 
-    // Encontrar a linha pivô usando o critério da razão mínima
-    public static int findPivotRow(double[][] tableau, int pivotCol) {
-        int pivotRow = -1;
-        double minRatio = Double.MAX_VALUE;
-        for (int i = 0; i < tableau.length - 1; i++) {
-            if (tableau[i][pivotCol] > 0) {
-                double ratio = tableau[i][tableau[0].length - 1] / tableau[i][pivotCol];
-                if (ratio < minRatio) {
-                    minRatio = ratio;
-                    pivotRow = i;
+    public static int indiceSaida(int indiceEntrada) {
+        float menorRazao = Float.MAX_VALUE;
+        int indice = -1;
+
+        for (int i = 0; i < X_B.size(); i++) {
+            float elemento = A.get(i).get(indiceEntrada);
+
+            if (elemento > 0) {
+                float razao = X_B.get(i) / elemento;
+                if (razao < menorRazao) {
+                    menorRazao = razao;
+                    indice = i;
                 }
             }
         }
-        return pivotRow;
+        return indice;
     }
 
-    // Realiza a operação de pivô (transformação da tabela)
-    public static void pivot(double[][] tableau, int pivotRow, int pivotCol) {
-        double pivotValue = tableau[pivotRow][pivotCol];
+    public static void atualizarBase(int indiceEntrada, int indiceSaida) {
+        String variavelEntrada = "x" + (indiceEntrada + 1);
+        String variavelSaida = B.get(indiceSaida);
 
-        // Normaliza a linha pivô
-        for (int i = 0; i < tableau[0].length; i++) {
-            tableau[pivotRow][i] /= pivotValue;
+        B.set(indiceSaida, variavelEntrada);
+        C_B.set(indiceSaida, C.get(indiceEntrada));
+
+        float elementoPivo = A.get(indiceSaida).get(indiceEntrada);
+
+        for (int i = 0; i < A.get(indiceSaida).size(); i++) {
+            A.get(indiceSaida).set(i, A.get(indiceSaida).get(i) / elementoPivo);
         }
+        X_B.set(indiceSaida, X_B.get(indiceSaida) / elementoPivo);
 
-        // Elimina os outros valores na coluna pivô
-        for (int i = 0; i < tableau.length; i++) {
-            if (i != pivotRow) {
-                double factor = tableau[i][pivotCol];
-                for (int j = 0; j < tableau[0].length; j++) {
-                    tableau[i][j] -= factor * tableau[pivotRow][j];
+        for (int i = 0; i < A.size(); i++) {
+            if (i != indiceSaida) {
+                float fator = A.get(i).get(indiceEntrada);
+                for (int j = 0; j < A.get(i).size(); j++) {
+                    A.get(i).set(j, A.get(i).get(j) - fator * A.get(indiceSaida).get(j));
                 }
+                X_B.set(i, X_B.get(i) - fator * X_B.get(indiceSaida));
             }
         }
     }
 
-    // Exibe a matriz tableau para visualização
-    public static void printTableau(double[][] tableau) {
-        for (int i = 0; i < tableau.length; i++) {
-            for (int j = 0; j < tableau[i].length; j++) {
-                System.out.print(String.format("%.2f", tableau[i][j]) + "\t");
+    public static void calcularResultado() {
+        float resultado = 0;
+
+        for (int i = 0; i < B.size(); i++) {
+            if (variaveis_artificiais.contains(B.get(i))) {
+                System.out.println("*********** Não existe solução para este problema ***********");
+                return;
             }
-            System.out.println();
+            resultado += C_B.get(i) * X_B.get(i);
         }
+
+        if (!tipoProblema) { // Solução final para minimização
+            resultado *= -1;
+        }
+
+        System.out.println("A solução final é: ");
+
+        for (int i = 0; i < B.size(); i++) {
+            System.out.println(B.get(i) + " = " + X_B.get(i));
+        }
+
+        System.out.println("\nA solução final é " + resultado + "\n");
     }
 
-    // Exibe a solução final
-    public static void printSolution(double[][] tableau) {
-        System.out.println("Solução ótima encontrada:");
+    public static boolean existeMin() {
+        for (float valor : diferenca) {
+            if (valor < 0) return true;
+        }
+        return false;
+    }
 
-        // Imprimir as variáveis de decisão (sem contar as artificiais ou de folga)
-        for (int i = 0; i < tableau[0].length - 1; i++) {
-            if (i < tableau.length - 1) { // Não tentar acessar linhas fora do alcance
-                System.out.print("x" + (i + 1) + " = " + tableau[i][tableau[0].length - 1] + " ");
+    public static int indiceMin() {
+        int indice = 0;
+        for (int i = 1; i < diferenca.size(); i++) {
+            if (diferenca.get(i) < diferenca.get(indice)) {
+                indice = i;
             }
         }
-
-        // Valor da função objetivo (última linha, última coluna)
-        System.out.println("\nValor da função objetivo Z = " + tableau[tableau.length - 1][tableau[0].length - 1]);
+        return indice;
     }
 
     public static void main(String[] args) {
-        // Exemplo de dados para o problema
-        double[][] A = {
-                {2, 1},
-                {1, 2}
-        };
-
-        double[] b = {6, 8};
-        double[] c = {3, 5};
-
-        // Chama o método Simplex com o método Big M
-        simplexBigM(A, b, c);
+        inicializar();
     }
 }
