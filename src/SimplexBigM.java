@@ -18,29 +18,26 @@ public class SimplexBigM {
         tipoProblema = true; // true para maximização, false para minimização
 
         // Coeficientes da função objetivo
-        C = Arrays.asList(3f, 2f, 0f, 0f, 0f); // Exemplo: maximizar 3x1 + 2x2
+        C = Arrays.asList(3f, 5f, 0f, 0f, 1f); // Exemplo: maximizar 3x1 + 2x2
 
         // Variáveis básicas iniciais
-        B = Arrays.asList("x3", "x4", "x5"); // Variáveis de folga ou artificiais
+        B = Arrays.asList("f2", "f1", "a"); // Variáveis de folga ou artificiais
 
         // Coeficientes de C_B (valores iniciais das variáveis básicas na função objetivo)
         C_B = Arrays.asList(0f, 0f, 0f);
 
         // Soluções básicas iniciais (lado direito das restrições)
-        X_B = Arrays.asList(4f, 6f, 5f); // Valores correspondentes ao lado direito das restrições
+        X_B = Arrays.asList(4f, 12f, 18f); // Valores correspondentes ao lado direito das restrições
 
         // Matriz de restrições
         A = Arrays.asList(
-                Arrays.asList(2f, 1f, 1f, 0f, 0f),
-                Arrays.asList(1f, 2f, 0f, 1f, 0f),
-                Arrays.asList(1f, 1f, 0f, 0f, 1f)
+                Arrays.asList(1f, 0f, 1f, 0f, 0f),
+                Arrays.asList(0f, 2f, 0f, 1f, 0f),
+                Arrays.asList(3f, 2f, 0f, 0f, 1f)
         );
 
         // Variáveis artificiais (se existirem)
-        variaveis_artificiais = new ArrayList<>();
-
-        System.out.println("Dados inicializados com valores fixos.");
-        System.out.println("Executando o método simplex...");
+        variaveis_artificiais = Arrays.asList("a");
 
         simplex();
     }
